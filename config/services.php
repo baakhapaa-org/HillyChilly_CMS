@@ -40,4 +40,15 @@ return [
         'model'   => env('MOONSHOT_MODEL', 'moonshot-v1-8k'),
     ],
 
+    'openai' => [
+        'api_key'      => env('OPENAI_API_KEY', ''),
+        'vision_model' => env('OPENAI_VISION_MODEL', 'gpt-4o'),
+    ],
+
+    'stripe' => [
+        'key'            => env('STRIPE_PUBLISHABLE_KEY', ''),
+        'secret'         => env('STRIPE_SECRET_KEY', ''),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET', ''),
+    ],
+
 ];

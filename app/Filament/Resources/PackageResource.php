@@ -8,7 +8,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\{BadgeColumn, BooleanColumn, ImageColumn, TextColumn};
 use Filament\Tables\Filters\{SelectFilter, TernaryFilter};
-use Filament\Tables\Actions\{EditAction, DeleteAction, ViewAction};
+use Filament\Tables\Actions\{EditAction, DeleteAction, ViewAction, Action};
 use Filament\Tables\Table;
 
 class PackageResource extends Resource
@@ -85,15 +85,26 @@ class PackageResource extends Resource
                 TernaryFilter::make('is_active')->label('Active'),
                 TernaryFilter::make('is_featured')->label('Featured'),
             ])
-            ->actions([ViewAction::make(), EditAction::make(), DeleteAction::make()]);
+            ->actions([
+                ViewAction::make(),
+                EditAction::make(),
+                Action::make('qr_codes')
+                    ->label('QR Codes')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('info')
+                    ->url(fn (Package $record): string => static::getUrl('qr-codes', ['record' => $record]))
+                    ->visible(fn (Package $record): bool => $record->tasks()->where('type', 'qr_scan')->exists()),
+                DeleteAction::make(),
+            ]);
     }
 
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListPackages::route('/'),
-            'create' => Pages\CreatePackage::route('/create'),
-            'edit'   => Pages\EditPackage::route('/{record}/edit'),
+            'index'     => Pages\ListPackages::route('/'),
+            'create'    => Pages\CreatePackage::route('/create'),
+            'edit'      => Pages\EditPackage::route('/{record}/edit'),
+            'qr-codes'  => Pages\QrCodesPage::route('/{record}/qr-codes'),
         ];
     }
 }

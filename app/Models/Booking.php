@@ -7,6 +7,7 @@ class Booking extends Model
     protected $fillable = [
         'user_id', 'package_id', 'start_date', 'participants',
         'total_amount_npr', 'points_reward', 'status', 'payment_method',
+        'payment_intent_id', 'payment_status',
     ];
     protected $casts = [
         'start_date'       => 'date',

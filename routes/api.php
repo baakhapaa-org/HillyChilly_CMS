@@ -4,9 +4,17 @@ use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\PackageController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PhotoSubmissionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RewardController;
 use Illuminate\Support\Facades\Route;
+
+// ---------------------------------------------------------
+// Stripe webhook (no auth — verified by signature)
+// ---------------------------------------------------------
+Route::post('/webhook/stripe', [PaymentController::class, 'webhook'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // ---------------------------------------------------------
 // Public routes
@@ -54,5 +62,11 @@ Route::prefix('v1')->group(function () {
 
         // AI Chat proxy
         Route::post('/ai/chat', [AiChatController::class, 'chat']);
+
+        // Photo submissions (with optional AI vision verification)
+        Route::post('/submissions/photo', [PhotoSubmissionController::class, 'store']);
+
+        // Stripe payments
+        Route::post('/payments/intent', [PaymentController::class, 'createIntent']);
     });
 });
