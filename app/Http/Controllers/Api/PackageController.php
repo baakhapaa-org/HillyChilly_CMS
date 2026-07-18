@@ -65,6 +65,7 @@ class PackageController extends Controller
             'durationDays' => $package->duration_days,
             'priceNpr'     => $package->price_npr,
             'priceUsd'     => (float) $package->price_usd,
+            'isFree'       => (bool) $package->is_free,
             'pointsReward' => $package->points_reward,
             'imageUrl'     => $package->image_url ?? '',
             'location'     => [

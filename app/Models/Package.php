@@ -12,12 +12,13 @@ class Package extends Model
         'title', 'slug', 'description', 'category', 'duration_days',
         'price_npr', 'price_usd', 'points_reward', 'image_url',
         'location_lat', 'location_lng', 'location_label',
-        'is_active', 'is_featured',
+        'is_active', 'is_featured', 'is_free',
     ];
 
     protected $casts = [
         'is_active'    => 'boolean',
         'is_featured'  => 'boolean',
+        'is_free'      => 'boolean',
         'price_npr'    => 'integer',
         'points_reward'=> 'integer',
         'duration_days'=> 'integer',
