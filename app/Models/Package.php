@@ -10,7 +10,7 @@ class Package extends Model
 
     protected $fillable = [
         'title', 'slug', 'description', 'category', 'duration_days',
-        'price_npr', 'points_reward', 'image_url',
+        'price_npr', 'price_usd', 'points_reward', 'image_url',
         'location_lat', 'location_lng', 'location_label',
         'is_active', 'is_featured',
     ];
