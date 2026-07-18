@@ -4,6 +4,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Blog extends Model
 {
+    protected $table = 'cms_blogs';
     protected $fillable = [
         'user_id', 'title', 'slug', 'image_url', 'content', 'excerpt',
         'category', 'is_published', 'view_count', 'meta_title', 'meta_description',

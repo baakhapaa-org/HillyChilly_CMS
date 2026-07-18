@@ -4,6 +4,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
+    protected $table = 'cms_settings';
     protected $fillable = ['key', 'value', 'label', 'group'];
 
     public static function get(string $key, mixed $default = null): mixed

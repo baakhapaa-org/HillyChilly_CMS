@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('blogs', function (Blueprint $table) {
+        Schema::create('cms_blogs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title');
@@ -21,5 +21,5 @@ return new class extends Migration {
             $table->timestamps();
         });
     }
-    public function down(): void { Schema::dropIfExists('blogs'); }
+    public function down(): void { Schema::dropIfExists('cms_blogs'); }
 };
