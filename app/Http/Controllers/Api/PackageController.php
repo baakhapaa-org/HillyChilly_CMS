@@ -64,6 +64,7 @@ class PackageController extends Controller
             'category'     => $package->category,
             'durationDays' => $package->duration_days,
             'priceNpr'     => $package->price_npr,
+            'priceUsd'     => (float) $package->price_usd,
             'pointsReward' => $package->points_reward,
             'imageUrl'     => $package->image_url ?? '',
             'location'     => [
@@ -93,7 +94,7 @@ class PackageController extends Controller
         $data = $request->validate([
             'title'          => 'required|string|max:255',
             'description'    => 'required|string',
-            'category'       => 'required|in:trekking,adventure,cultural,wildlife,spiritual',
+            'category'       => 'required|in:trekking,adventure,cultural,wildlife,spiritual,food,cycling,urban',
             'duration_days'  => 'required|integer|min:1',
             'price_npr'      => 'required|integer|min:0',
             'points_reward'  => 'nullable|integer|min:0',
@@ -112,7 +113,7 @@ class PackageController extends Controller
         $data = $request->validate([
             'title'          => 'sometimes|string|max:255',
             'description'    => 'sometimes|string',
-            'category'       => 'sometimes|in:trekking,adventure,cultural,wildlife,spiritual',
+            'category'       => 'sometimes|in:trekking,adventure,cultural,wildlife,spiritual,food,cycling,urban',
             'duration_days'  => 'sometimes|integer|min:1',
             'price_npr'      => 'sometimes|integer|min:0',
             'points_reward'  => 'sometimes|integer|min:0',
