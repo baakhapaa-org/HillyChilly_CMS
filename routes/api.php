@@ -18,8 +18,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login',    [AuthController::class, 'login']);
 
     // Packages — public browsing
-    Route::get('/packages',        [PackageController::class, 'index']);
+    Route::get('/packages',           [PackageController::class, 'index']);
     Route::get('/packages/{package}', [PackageController::class, 'show']);
+
+    // Flutter-compatible quest endpoint (camelCase format)
+    Route::get('/quests',             [PackageController::class, 'quests']);
 
     // ---------------------------------------------------------
     // Protected routes (Sanctum token required)

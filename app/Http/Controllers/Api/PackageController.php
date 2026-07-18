@@ -38,6 +38,51 @@ class PackageController extends Controller
         return response()->json($packages);
     }
 
+    /** Flutter-compatible quest format (camelCase, flat tasks array) */
+    public function quests(Request $request)
+    {
+        $query = Package::active()->with('tasks');
+
+        if ($request->filled('search')) {
+            $query->where('title', 'like', "%{$request->search}%");
+        }
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        $packages = $query->orderBy('is_featured', 'desc')->orderBy('id')->get();
+
+        return response()->json($packages->map(fn ($p) => $this->toQuestFormat($p))->values());
+    }
+
+    private function toQuestFormat(Package $package): array
+    {
+        return [
+            'id'           => (string) $package->id,
+            'title'        => $package->title,
+            'description'  => strip_tags($package->description ?? ''),
+            'category'     => $package->category,
+            'durationDays' => $package->duration_days,
+            'priceNpr'     => $package->price_npr,
+            'pointsReward' => $package->points_reward,
+            'imageUrl'     => $package->image_url ?? '',
+            'location'     => [
+                'lat'   => (float) ($package->location_lat ?? 27.7172),
+                'lng'   => (float) ($package->location_lng ?? 85.3240),
+                'label' => $package->location_label ?? 'Nepal',
+            ],
+            'tasks' => $package->tasks->map(function ($t) {
+                $base = [
+                    'id'     => (string) $t->id,
+                    'type'   => $t->type,
+                    'title'  => $t->title,
+                    'points' => $t->points,
+                ];
+                return array_merge($base, (array) ($t->config ?? []));
+            })->values()->toArray(),
+        ];
+    }
+
     public function show(Package $package)
     {
         return response()->json($package->load('tasks'));
