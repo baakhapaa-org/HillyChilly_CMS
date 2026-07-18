@@ -10,15 +10,18 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Admin user
-        User::firstOrCreate(
-            ['email' => 'admin@hillychilly.com'],
-            [
-                'name'           => 'Hilly Chilly Admin',
-                'password'       => Hash::make('password'),
-                'is_admin'       => true,
-                'points_balance' => 0,
-            ]
-        );
+        // Build data without optional columns that may not exist
+        $adminData = [
+            'name'           => 'Hilly Chilly Admin',
+            'password'       => Hash::make('password'),
+            'is_admin'       => true,
+            'points_balance' => 0,
+        ];
+        // Support username column if it exists on the shared users table
+        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'username')) {
+            $adminData['username'] = 'admin_hc';
+        }
+        User::firstOrCreate(['email' => 'admin@hillychilly.com'], $adminData);
 
         // Default settings
         $settings = [
