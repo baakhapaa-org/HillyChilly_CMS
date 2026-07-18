@@ -6,10 +6,70 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Exchange a Firebase ID token for a Sanctum token.
+     * Verifies the token via Google's public tokeninfo endpoint
+     * (no Firebase Admin SDK required).
+     */
+    public function firebaseLogin(Request $request)
+    {
+        $request->validate(['firebase_token' => 'required|string']);
+
+        $idToken = $request->input('firebase_token');
+
+        // Verify with Google
+        $resp = Http::get('https://oauth2.googleapis.com/tokeninfo', [
+            'id_token' => $idToken,
+        ]);
+
+        if (!$resp->successful()) {
+            return response()->json(['message' => 'Invalid Firebase token.'], 401);
+        }
+
+        $payload = $resp->json();
+
+        // Ensure the token was issued for our Firebase project
+        $projectId = config('services.firebase.project_id');
+        if ($projectId && ($payload['aud'] ?? '') !== $projectId) {
+            return response()->json(['message' => 'Token audience mismatch.'], 401);
+        }
+
+        $email    = $payload['email'] ?? null;
+        $name     = $payload['name'] ?? ($payload['email'] ?? 'User');
+        $avatar   = $payload['picture'] ?? null;
+        $fireUid  = $payload['sub'] ?? null;
+
+        if (!$email || !$fireUid) {
+            return response()->json(['message' => 'Token missing required fields.'], 422);
+        }
+
+        $user = User::firstOrCreate(
+            ['email' => $email],
+            [
+                'name'       => $name,
+                'password'   => Hash::make($fireUid . config('app.key')),
+                'avatar_url' => $avatar,
+            ]
+        );
+
+        // Keep avatar in sync
+        if ($avatar && $user->avatar_url !== $avatar) {
+            $user->update(['avatar_url' => $avatar]);
+        }
+
+        $token = $user->createToken('mobile-firebase')->plainTextToken;
+
+        return response()->json([
+            'user'  => $this->userResource($user),
+            'token' => $token,
+        ]);
+    }
+
     public function register(Request $request)
     {
         $data = $request->validate([

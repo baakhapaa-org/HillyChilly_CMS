@@ -51,4 +51,8 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET', ''),
     ],
 
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID', ''),
+    ],
+
 ];
