@@ -34,7 +34,7 @@ class QrCodesPage extends Page
                     'title' => $task->title,
                     'code'  => $code,
                     // Inline SVG — rendered directly in blade
-                    'svg'   => QrCode::format('svg')->size(250)->margin(2)->generate($code),
+                    'svg'   => (string) QrCode::format('svg')->size(250)->margin(2)->generate($code),
                 ];
             })
             ->toArray();

@@ -15,7 +15,7 @@ class AiChatController extends Controller
     public function __construct()
     {
         $this->httpClient = new Client([
-            'base_uri' => 'https://api.moonshot.cn/v1/',
+            'base_uri' => 'https://api.openai.com/v1/',
             'timeout'  => 30,
         ]);
     }
@@ -54,11 +54,11 @@ class AiChatController extends Controller
         try {
             $response = $this->httpClient->post('chat/completions', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . config('services.moonshot.api_key'),
+                    'Authorization' => 'Bearer ' . config('services.openai.api_key'),
                     'Content-Type'  => 'application/json',
                 ],
                 'json' => [
-                    'model'           => config('services.moonshot.model', 'moonshot-v1-8k'),
+                    'model'           => config('services.openai.model', 'gpt-4o-mini'),
                     'messages'        => $messages,
                     'temperature'     => 0.7,
                     'response_format' => ['type' => 'json_object'],
