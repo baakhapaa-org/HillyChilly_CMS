@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\PackageTask;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -15,136 +14,120 @@ class PhotoSubmissionController extends Controller
     /**
      * POST /api/v1/submissions/photo
      *
-     * Accepts a photo upload with task_id, saves it, then optionally
-     * verifies it with Google Cloud Vision.
+     * Accepts a photo + task_description from the Flutter app, persists the
+     * photo, then verifies it with Gemini Vision (gemini-1.5-flash).
      *
      * Returns:
-     *   { submitted: true, verified: true|false, labels: [...], message: '...' }
+     *   { verified: true|false, message: '...' }
      */
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'task_id' => 'required|exists:package_tasks,id',
-            'photo'   => 'required|file|image|max:10240', // 10 MB
+            'task_description' => 'required|string|max:500',
+            'photo'            => 'required|file|image|max:10240', // 10 MB
         ]);
 
-        $task = PackageTask::findOrFail($request->task_id);
-
         // ── 1. Persist the photo ────────────────────────────────────────────
-        $path = $request->file('photo')->store(
-            "submissions/{$request->user()->id}/{$task->id}",
+        $userId = $request->user()?->id ?? 'guest';
+        $path   = $request->file('photo')->store(
+            "submissions/{$userId}/" . now()->format('Ymd'),
             'public'
         );
 
-        // ── 2. AI Vision verification ───────────────────────────────────────
-        $apiKey = config('services.openai.api_key');
+        // ── 2. Gemini Vision verification ───────────────────────────────────
+        $apiKey = env('GEMINI_API_KEY');
 
         if (empty($apiKey)) {
-            // Vision not configured — accept the photo unconditionally.
+            Log::warning('[GeminiVision] GEMINI_API_KEY not set — accepting photo unconditionally.');
             return response()->json([
-                'submitted' => true,
-                'verified'  => true,
-                'labels'    => [],
-                'message'   => 'Photo saved. AI verification not configured.',
+                'verified' => true,
+                'message'  => 'Photo saved. AI verification not configured.',
             ]);
         }
 
-        [$verified, $labels, $message] = $this->verifyWithVision(
+        [$verified, $message] = $this->verifyWithGemini(
             Storage::disk('public')->path($path),
-            $task
+            $request->task_description
         );
 
         return response()->json([
-            'submitted' => true,
-            'verified'  => $verified,
-            'labels'    => $labels,
-            'message'   => $message,
+            'verified' => $verified,
+            'message'  => $message,
         ]);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
 
     /**
-     * Call OpenAI GPT-4o vision to verify the photo matches the task context.
+     * Call Gemini 1.5 Flash to verify the photo matches the task description.
      *
-     * Returns [bool $verified, array $detectedLabels, string $message]
+     * Returns [bool $verified, string $message]
      */
-    private function verifyWithVision(string $filePath, PackageTask $task): array
+    private function verifyWithGemini(string $filePath, string $taskDescription): array
     {
-        $expectedLabels = data_get($task->config, 'expectedLabels', []);
-
-        // Build a clear prompt from expected labels, falling back to the task title.
-        $context = ! empty($expectedLabels)
-            ? implode(', ', $expectedLabels)
-            : $task->title;
-
         $prompt = <<<PROMPT
-You are verifying a photo submitted for a quest task.
-Task description: "{$context}"
-
-Look at the photo and decide if it genuinely shows content related to that task.
-Reply with ONLY valid JSON — no extra text:
-{"verified": true, "reason": "brief reason"}
+You are verifying a photo submitted for a travel quest task.
+Task: "{$taskDescription}"
+Does this photo clearly show evidence of completing that task?
+Reply with ONLY valid JSON (no markdown, no code fences):
+{"verified": true, "message": "brief reason"}
 or
-{"verified": false, "reason": "brief reason"}
+{"verified": false, "message": "what is wrong or missing in the photo"}
 PROMPT;
 
         try {
             $imageData = base64_encode(file_get_contents($filePath));
             $mimeType  = mime_content_type($filePath) ?: 'image/jpeg';
-            $apiKey    = config('services.openai.api_key');
+            $apiKey    = env('GEMINI_API_KEY');
 
             $response = Http::timeout(20)
-                ->withToken($apiKey)
-                ->post('https://api.openai.com/v1/chat/completions', [
-                    'model'      => config('services.openai.vision_model', 'gpt-4o'),
-                    'max_tokens' => 100,
-                    'messages'   => [[
-                        'role'    => 'user',
-                        'content' => [
-                            [
-                                'type' => 'text',
-                                'text' => $prompt,
+                ->post(
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
+                    [
+                        'contents'        => [[
+                            'parts' => [
+                                ['text' => $prompt],
+                                ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageData]],
                             ],
-                            [
-                                'type'      => 'image_url',
-                                'image_url' => [
-                                    'url'    => "data:{$mimeType};base64,{$imageData}",
-                                    'detail' => 'low', // cheaper + faster
-                                ],
-                            ],
-                        ],
-                    ]],
-                ]);
+                        ]],
+                        'generationConfig' => ['temperature' => 0.1],
+                    ]
+                );
 
             if (! $response->successful()) {
-                Log::warning('OpenAI Vision error', ['status' => $response->status(), 'body' => $response->body()]);
-                return [true, [], 'Vision API unavailable — photo accepted.'];
+                Log::warning('[GeminiVision] API error', [
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+                // Fail open — don't block participant on a Gemini outage.
+                return [true, 'Verification service temporarily unavailable.'];
             }
 
-            $content = trim($response->json('choices.0.message.content', '{}'));
-            // Strip markdown code fences if GPT wraps the JSON
-            $content = preg_replace('/^```(?:json)?\s*/i', '', $content);
-            $content = preg_replace('/\s*```$/', '', $content);
+            $raw = $response->json('candidates.0.content.parts.0.text', '');
+            // Strip markdown code fences if Gemini wraps the JSON
+            $raw    = preg_replace('/^```(?:json)?\s*|\s*```$/m', '', trim($raw));
+            $result = json_decode($raw, true);
 
-            $result   = json_decode($content, true);
-            $verified = (bool) ($result['verified'] ?? true);
-            $reason   = $result['reason'] ?? '';
-
-            if (! empty($expectedLabels) && ! $verified) {
-                return [
-                    false,
-                    $expectedLabels,
-                    $reason ?: "Photo doesn't match the expected location. Please retake at the correct spot.",
-                ];
+            if (! isset($result['verified'])) {
+                Log::warning('[GeminiVision] Unparseable response', ['raw' => $raw]);
+                return [true, 'Verification service temporarily unavailable.'];
             }
 
-            return [true, $expectedLabels, $reason ?: 'Photo verified.'];
+            $verified = (bool) $result['verified'];
+            $message  = $result['message'] ?? ($verified ? 'Photo verified.' : "Photo doesn't match the task. Please retake.");
+
+            Log::info('[GeminiVision] Result', [
+                'task'     => $taskDescription,
+                'verified' => $verified,
+                'message'  => $message,
+            ]);
+
+            return [$verified, $message];
 
         } catch (\Throwable $e) {
-            Log::error('OpenAI Vision exception', ['error' => $e->getMessage()]);
-            // Fail open — don't block participant on a Vision error.
-            return [true, [], 'Photo saved. Verification skipped due to an error.'];
+            Log::error('[GeminiVision] Exception', ['error' => $e->getMessage()]);
+            // Fail open — don't block participant on an error.
+            return [true, 'Verification service temporarily unavailable.'];
         }
     }
 }
