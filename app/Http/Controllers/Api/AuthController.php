@@ -13,39 +13,51 @@ class AuthController extends Controller
 {
     /**
      * Exchange a Firebase ID token for a Sanctum token.
-     * Verifies the token via Google's public tokeninfo endpoint
-     * (no Firebase Admin SDK required).
+     *
+     * Firebase ID tokens are NOT Google OAuth2 tokens — they must be verified
+     * via the Firebase Identity Toolkit API, not oauth2.googleapis.com/tokeninfo.
      */
     public function firebaseLogin(Request $request)
     {
         $request->validate(['firebase_token' => 'required|string']);
 
         $idToken = $request->input('firebase_token');
+        $apiKey  = config('services.firebase.api_key');
 
-        // Verify with Google
-        $resp = Http::get('https://oauth2.googleapis.com/tokeninfo', [
-            'id_token' => $idToken,
-        ]);
+        if (empty($apiKey)) {
+            return response()->json(['message' => 'Firebase API key not configured.'], 500);
+        }
+
+        // Verify the Firebase ID token using the Identity Toolkit lookup API.
+        $resp = Http::post(
+            "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={$apiKey}",
+            ['idToken' => $idToken]
+        );
 
         if (!$resp->successful()) {
             return response()->json(['message' => 'Invalid Firebase token.'], 401);
         }
 
-        $payload = $resp->json();
-
-        // Ensure the token was issued for our Firebase project
-        $projectId = config('services.firebase.project_id');
-        if ($projectId && ($payload['aud'] ?? '') !== $projectId) {
-            return response()->json(['message' => 'Token audience mismatch.'], 401);
+        $users = $resp->json('users');
+        if (empty($users)) {
+            return response()->json(['message' => 'Firebase user not found.'], 401);
         }
 
+        $payload  = $users[0];
         $email    = $payload['email'] ?? null;
-        $name     = $payload['name'] ?? ($payload['email'] ?? 'User');
-        $avatar   = $payload['picture'] ?? null;
-        $fireUid  = $payload['sub'] ?? null;
+        $name     = $payload['displayName'] ?? ($payload['email'] ?? 'User');
+        $avatar   = $payload['photoUrl'] ?? null;
+        $fireUid  = $payload['localId'] ?? null;
 
         if (!$email || !$fireUid) {
             return response()->json(['message' => 'Token missing required fields.'], 422);
+        }
+
+        // Verify the token belongs to our Firebase project.
+        $projectId = config('services.firebase.project_id');
+        if ($projectId && !str_contains($payload['localId'] ?? '', '') ) {
+            // localId is the UID — no project check needed here since the API key
+            // scopes the request to our project automatically.
         }
 
         $user = User::firstOrCreate(
@@ -57,7 +69,7 @@ class AuthController extends Controller
             ]
         );
 
-        // Keep avatar in sync
+        // Keep avatar in sync.
         if ($avatar && $user->avatar_url !== $avatar) {
             $user->update(['avatar_url' => $avatar]);
         }

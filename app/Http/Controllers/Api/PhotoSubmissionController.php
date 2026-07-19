@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
+use App\Models\BookingTaskCompletion;
+use App\Models\PackageTask;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +19,8 @@ class PhotoSubmissionController extends Controller
      *
      * Accepts a photo + task_description from the Flutter app, persists the
      * photo, then verifies it with Gemini Vision (gemini-1.5-flash).
+     * If verified and booking_id + task_id are provided, records the
+     * completion in booking_task_completions.
      *
      * Returns:
      *   { verified: true|false, message: '...' }
@@ -25,6 +30,8 @@ class PhotoSubmissionController extends Controller
         $request->validate([
             'task_description' => 'required|string|max:500',
             'photo'            => 'required|file|image|max:10240', // 10 MB
+            'booking_id'       => 'nullable|integer|exists:bookings,id',
+            'task_id'          => 'nullable|integer|exists:package_tasks,id',
         ]);
 
         // ── 1. Persist the photo ────────────────────────────────────────────
@@ -39,6 +46,7 @@ class PhotoSubmissionController extends Controller
 
         if (empty($apiKey)) {
             Log::warning('[GeminiVision] GEMINI_API_KEY not set — accepting photo unconditionally.');
+            $this->recordCompletion($request, $path);
             return response()->json([
                 'verified' => true,
                 'message'  => 'Photo saved. AI verification not configured.',
@@ -50,6 +58,11 @@ class PhotoSubmissionController extends Controller
             $request->task_description
         );
 
+        // ── 3. Record completion in DB if verified ──────────────────────────
+        if ($verified) {
+            $this->recordCompletion($request, $path);
+        }
+
         return response()->json([
             'verified' => $verified,
             'message'  => $message,
@@ -57,6 +70,27 @@ class PhotoSubmissionController extends Controller
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
+
+    /**
+     * Persist a BookingTaskCompletion row when booking_id + task_id are sent.
+     */
+    private function recordCompletion(Request $request, string $proofPath): void
+    {
+        if (! $request->filled('booking_id') || ! $request->filled('task_id')) {
+            return;
+        }
+
+        $booking = Booking::find($request->booking_id);
+        if (! $booking || $booking->user_id !== $request->user()?->id) {
+            return;
+        }
+
+        BookingTaskCompletion::firstOrCreate(
+            ['booking_id' => $request->booking_id, 'task_id' => $request->task_id],
+            ['proof_path' => $proofPath, 'completed_at' => now()]
+        );
+    }
+
 
     /**
      * Call Gemini 1.5 Flash to verify the photo matches the task description.

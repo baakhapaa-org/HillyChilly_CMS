@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PhotoSubmissionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RewardController;
+use App\Http\Controllers\Api\TaskCompletionController;
 use Illuminate\Support\Facades\Route;
 
 // ---------------------------------------------------------
@@ -48,10 +49,15 @@ Route::prefix('v1')->group(function () {
         Route::delete('/packages/{package}',  [PackageController::class, 'destroy']);
 
         // Bookings
-        Route::get('/bookings',              [BookingController::class, 'index']);
-        Route::post('/bookings',             [BookingController::class, 'store']);
-        Route::get('/bookings/{booking}',    [BookingController::class, 'show']);
-        Route::patch('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
+        Route::get('/bookings',                          [BookingController::class, 'index']);
+        Route::post('/bookings',                         [BookingController::class, 'store']);
+        Route::get('/bookings/{booking}',                [BookingController::class, 'show']);
+        Route::patch('/bookings/{booking}/status',       [BookingController::class, 'updateStatus']);
+        Route::patch('/bookings/{booking}/cancel',       [BookingController::class, 'cancel']);
+
+        // Task completions (per-booking progress sync)
+        Route::get('/bookings/{booking}/tasks',                          [TaskCompletionController::class, 'index']);
+        Route::post('/bookings/{booking}/tasks/{task}/complete',         [TaskCompletionController::class, 'complete']);
 
         // Rewards
         Route::get('/rewards',              [RewardController::class, 'index']);

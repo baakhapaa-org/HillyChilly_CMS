@@ -80,6 +80,18 @@ class BookingController extends Controller
         return response()->json(['message' => 'Booking cancelled.']);
     }
 
+    public function updateStatus(Request $request, Booking $booking)
+    {
+        $this->authorizeBooking($request, $booking);
+
+        $data = $request->validate([
+            'status' => 'required|in:upcoming,active,completed,cancelled',
+        ]);
+
+        $booking->update(['status' => $data['status']]);
+        return response()->json($this->bookingResource($booking->load('package')));
+    }
+
     private function authorizeBooking(Request $request, Booking $booking): void
     {
         if ($booking->user_id !== $request->user()->id) {
