@@ -55,6 +55,12 @@ class PackageController extends Controller
         return response()->json($packages->map(fn ($p) => $this->toQuestFormat($p))->values());
     }
 
+    /** Single package in Flutter-compatible camelCase format */
+    public function questShow(Package $package)
+    {
+        return response()->json($this->toQuestFormat($package->load('tasks')));
+    }
+
     private function toQuestFormat(Package $package): array
     {
         return [

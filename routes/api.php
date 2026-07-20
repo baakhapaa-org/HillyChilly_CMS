@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
 
     // Flutter-compatible quest endpoint (camelCase format)
     Route::get('/quests',             [PackageController::class, 'quests']);
+    Route::get('/quests/{package}',   [PackageController::class, 'questShow']);
 
     // ---------------------------------------------------------
     // Protected routes (Sanctum token required)
