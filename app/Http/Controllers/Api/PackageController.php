@@ -74,13 +74,23 @@ class PackageController extends Controller
                 'label' => $package->location_label ?? 'Nepal',
             ],
             'tasks' => $package->tasks->map(function ($t) {
+                $config = (array) ($t->config ?? []);
+
+                // Quiz questions may be stored as a JSON string inside the config
+                // array (entered via the CMS textarea). Decode it to a proper array
+                // so the Flutter client receives the correct structure.
+                if ($t->type === 'quiz' && isset($config['questions']) && is_string($config['questions'])) {
+                    $decoded = json_decode($config['questions'], true);
+                    $config['questions'] = is_array($decoded) ? $decoded : [];
+                }
+
                 $base = [
                     'id'     => (string) $t->id,
                     'type'   => $t->type,
                     'title'  => $t->title,
                     'points' => $t->points,
                 ];
-                return array_merge($base, (array) ($t->config ?? []));
+                return array_merge($base, $config);
             })->values()->toArray(),
         ];
     }
