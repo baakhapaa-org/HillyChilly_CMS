@@ -90,11 +90,19 @@ class PackageController extends Controller
                     $config['questions'] = is_array($decoded) ? $decoded : [];
                 }
 
+                // GPS lat/lng may have been stored as strings; normalise to float
+                // so Flutter's (num) cast never throws a TypeError.
+                if ($t->type === 'gps_checkin') {
+                    if (isset($config['lat']))          $config['lat']          = (float) $config['lat'];
+                    if (isset($config['lng']))          $config['lng']          = (float) $config['lng'];
+                    if (isset($config['radiusMeters'])) $config['radiusMeters'] = (int)   $config['radiusMeters'];
+                }
+
                 $base = [
                     'id'     => (string) $t->id,
                     'type'   => $t->type,
                     'title'  => $t->title,
-                    'points' => $t->points,
+                    'points' => (int) $t->points,
                 ];
                 return array_merge($base, $config);
             })->values()->toArray(),
