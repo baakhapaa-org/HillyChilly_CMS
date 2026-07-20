@@ -2,11 +2,12 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\BookingResource\Pages;
+use App\Filament\Resources\BookingResource\RelationManagers\TaskCompletionsRelationManager;
 use App\Models\Booking;
 use Filament\Forms\Components\{DatePicker, Grid, Section, Select, TextInput};
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Columns\{BadgeColumn, TextColumn};
+use Filament\Tables\Columns\{TextColumn};
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Actions\{EditAction, ViewAction};
 use Filament\Tables\Table;
@@ -33,11 +34,13 @@ class BookingResource extends Resource
                 ]),
                 Grid::make(2)->schema([
                     Select::make('status')->options([
+                        'upcoming'  => 'Upcoming',
                         'pending'   => 'Pending',
+                        'active'    => 'Active',
                         'confirmed' => 'Confirmed',
                         'cancelled' => 'Cancelled',
                         'completed' => 'Completed',
-                    ])->required(),
+                    ])->required()->default('pending'),
                     Select::make('payment_method')->options([
                         'esewa'  => 'eSewa',
                         'khalti' => 'Khalti',
@@ -59,22 +62,37 @@ class BookingResource extends Resource
                 TextColumn::make('start_date')->date()->sortable(),
                 TextColumn::make('participants')->suffix(' pax'),
                 TextColumn::make('total_amount_npr')->money('NPR')->sortable(),
-                TextColumn::make('payment_method')->badge(),
+                TextColumn::make('payment_method')->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'esewa'  => 'success',
+                        'khalti' => 'info',
+                        'bank'   => 'warning',
+                        'cash'   => 'gray',
+                        default  => 'gray',
+                    }),
                 TextColumn::make('status')->badge()
-                    ->colors([
-                        'warning' => 'pending',
-                        'success' => 'confirmed',
-                        'danger'  => 'cancelled',
-                        'info'    => 'completed',
-                    ]),
+                    ->color(fn (string $state): string => match ($state) {
+                        'pending'   => 'warning',
+                        'confirmed' => 'success',
+                        'upcoming'  => 'info',
+                        'active'    => 'primary',
+                        'cancelled' => 'danger',
+                        'completed' => 'gray',
+                        default     => 'gray',
+                    }),
                 TextColumn::make('created_at')->date()->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(['pending' => 'Pending', 'confirmed' => 'Confirmed', 'cancelled' => 'Cancelled', 'completed' => 'Completed']),
+                SelectFilter::make('status')->options(['upcoming' => 'Upcoming', 'pending' => 'Pending', 'active' => 'Active', 'confirmed' => 'Confirmed', 'cancelled' => 'Cancelled', 'completed' => 'Completed']),
                 SelectFilter::make('payment_method')->options(['esewa' => 'eSewa', 'khalti' => 'Khalti', 'bank' => 'Bank', 'cash' => 'Cash']),
             ])
             ->actions([ViewAction::make(), EditAction::make()]);
+    }
+
+    public static function getRelationManagers(): array
+    {
+        return [TaskCompletionsRelationManager::class];
     }
 
     public static function getPages(): array

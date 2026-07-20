@@ -6,7 +6,7 @@ use App\Models\User;
 use Filament\Forms\Components\{Grid, Section, TextInput, Toggle};
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Columns\{BooleanColumn, TextColumn};
+use Filament\Tables\Columns\{IconColumn, TextColumn};
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Actions\{EditAction, DeleteAction};
 use Filament\Tables\Table;
@@ -50,7 +50,7 @@ class UserResource extends Resource
                 TextColumn::make('email')->searchable(),
                 TextColumn::make('points_balance')->prefix('⭐ ')->sortable(),
                 TextColumn::make('bookings_count')->counts('bookings')->label('Bookings'),
-                BooleanColumn::make('is_admin')->label('Admin'),
+                IconColumn::make('is_admin')->boolean()->label('Admin'),
                 TextColumn::make('created_at')->date()->sortable(),
             ])
             ->defaultSort('created_at', 'desc')

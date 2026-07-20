@@ -3,10 +3,10 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PackageResource\Pages;
 use App\Models\Package;
-use Filament\Forms\Components\{FileUpload, Grid, RichEditor, Section, Select, TextInput, Textarea, Toggle};
+use Filament\Forms\Components\{Grid, Repeater, Section, Select, Textarea, TextInput, Toggle};
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Columns\{BadgeColumn, BooleanColumn, ImageColumn, TextColumn};
+use Filament\Tables\Columns\{IconColumn, ImageColumn, TextColumn};
 use Filament\Tables\Filters\{SelectFilter, TernaryFilter};
 use Filament\Tables\Actions\{EditAction, DeleteAction, ViewAction, Action};
 use Filament\Tables\Table;
@@ -62,6 +62,87 @@ class PackageResource extends Resource
                     Toggle::make('is_featured')->label('Featured on Homepage'),
                 ]),
             ]),
+
+            Section::make('Tasks')
+                ->description('Add tasks users must complete during this quest. Config fields vary by type.')
+                ->collapsible()
+                ->schema([
+                    Repeater::make('tasks')
+                        ->relationship('tasks')
+                        ->orderColumn('sort_order')
+                        ->addActionLabel('Add Task')
+                        ->collapsed()
+                        ->itemLabel(fn (array $state): string => ($state['title'] ?? 'New Task') . ' — ' . ($state['type'] ?? ''))
+                        ->schema([
+                            Grid::make(3)->schema([
+                                Select::make('type')
+                                    ->options([
+                                        'photo_proof' => '📷 Photo Proof',
+                                        'gps_checkin' => '📍 GPS Check-In',
+                                        'qr_scan'     => '🔳 QR Scan',
+                                        'code_entry'  => '🔑 Code Entry',
+                                        'quiz'        => '📝 Quiz',
+                                    ])
+                                    ->required()
+                                    ->live()
+                                    ->label('Task Type'),
+                                TextInput::make('title')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->placeholder('e.g. Take a photo at the summit'),
+                                TextInput::make('points')
+                                    ->numeric()
+                                    ->default(10)
+                                    ->suffix('pts')
+                                    ->minValue(0)
+                                    ->required(),
+                            ]),
+
+                            // GPS Check-In fields
+                            Grid::make(3)->schema([
+                                TextInput::make('config.lat')
+                                    ->numeric()
+                                    ->placeholder('27.7172')
+                                    ->label('Latitude'),
+                                TextInput::make('config.lng')
+                                    ->numeric()
+                                    ->placeholder('85.3240')
+                                    ->label('Longitude'),
+                                TextInput::make('config.radiusMeters')
+                                    ->numeric()
+                                    ->default(100)
+                                    ->suffix('m')
+                                    ->label('Radius (metres)'),
+                            ])->visible(fn (\Filament\Forms\Get $get): bool => $get('type') === 'gps_checkin'),
+
+                            // QR Scan fields
+                            TextInput::make('config.qrCode')
+                                ->label('QR Code Value')
+                                ->placeholder('The exact string encoded in the QR code')
+                                ->visible(fn (\Filament\Forms\Get $get): bool => $get('type') === 'qr_scan'),
+
+                            // Code Entry fields
+                            Grid::make(2)->schema([
+                                TextInput::make('config.codeHash')
+                                    ->label('Secret Code Hash (SHA-256)')
+                                    ->placeholder('e.g. sha256("summit2026") — use an online SHA-256 tool')
+                                    ->helperText('Enter the SHA-256 hex hash of the secret code participants must type.'),
+                                TextInput::make('config.hint')
+                                    ->label('Hint shown to users')
+                                    ->placeholder('Look near the entrance…'),
+                            ])->visible(fn (\Filament\Forms\Get $get): bool => $get('type') === 'code_entry'),
+
+                            // Quiz fields — stored as JSON textarea for flexibility
+                            Textarea::make('config.questions')
+                                ->label('Quiz Questions (JSON array)')
+                                ->placeholder('[{"question":"What colour is the flag?","options":["Red","Blue","Green"],"correctIndex":0}]')
+                                ->helperText('Paste a JSON array of {question, options[], correctIndex}.')
+                                ->rows(5)
+                                ->visible(fn (\Filament\Forms\Get $get): bool => $get('type') === 'quiz'),
+                        ])
+                        ->columns(1)
+                        ->columnSpanFull(),
+                ]),
         ]);
     }
 
@@ -72,12 +153,18 @@ class PackageResource extends Resource
                 ImageColumn::make('image_url')->circular()->label(''),
                 TextColumn::make('title')->searchable()->sortable()->weight('bold'),
                 TextColumn::make('category')->badge()
-                    ->colors(['primary' => 'trekking', 'success' => 'adventure', 'warning' => 'wildlife', 'info' => 'cultural']),
+                    ->color(fn (string $state): string => match ($state) {
+                        'trekking'  => 'primary',
+                        'adventure' => 'success',
+                        'wildlife'  => 'warning',
+                        'cultural'  => 'info',
+                        default     => 'gray',
+                    }),
                 TextColumn::make('duration_days')->suffix(' days')->sortable(),
                 TextColumn::make('price_npr')->money('NPR')->sortable(),
                 TextColumn::make('points_reward')->prefix('⭐ ')->sortable(),
-                BooleanColumn::make('is_active')->label('Live'),
-                BooleanColumn::make('is_featured')->label('Featured'),
+                IconColumn::make('is_active')->boolean()->label('Live'),
+                IconColumn::make('is_featured')->boolean()->label('Featured'),
                 TextColumn::make('bookings_count')->counts('bookings')->label('Bookings'),
             ])
             ->filters([
