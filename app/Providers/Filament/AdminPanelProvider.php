@@ -6,6 +6,7 @@ use App\Filament\Resources\{
     FaqResource, PackageResource, SettingResource,
     TestimonialResource, UserResource
 };
+use App\Filament\Widgets\PilotAnalyticsWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use Filament\Http\Middleware\{Authenticate, DisableBladeIconComponents, DispatchServingFilamentEvent};
 use Filament\Http\Middleware\{AuthenticateSession};
@@ -28,15 +29,18 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('manage')
             ->login()
-            ->colors(['primary' => Color::Emerald])
-            ->brandName('Hilly Chilly Admin')
-            ->brandLogo(null)
+            ->colors(['primary' => Color::hex('#C9A84C')])
+            ->brandName('Hillychilly')
+            ->brandLogo(asset('logo-banner.png'))
+            ->brandLogoHeight('2.5rem')
+            ->favicon(asset('favicon.ico'))
             ->darkMode(true)
             ->sidebarCollapsibleOnDesktop()
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([])
             ->widgets([
+                PilotAnalyticsWidget::class,
                 StatsOverviewWidget::class,
                 AccountWidget::class,
             ])
