@@ -6,6 +6,7 @@ use App\Filament\Resources\{
     FaqResource, PackageResource, SettingResource,
     TestimonialResource, UserResource
 };
+use App\Filament\Widgets\PilotAnalyticsWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use Filament\Http\Middleware\{Authenticate, DisableBladeIconComponents, DispatchServingFilamentEvent};
 use Filament\Http\Middleware\{AuthenticateSession};
@@ -37,6 +38,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([])
             ->widgets([
+                PilotAnalyticsWidget::class,
                 StatsOverviewWidget::class,
                 AccountWidget::class,
             ])
