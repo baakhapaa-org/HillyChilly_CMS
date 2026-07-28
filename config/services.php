@@ -56,4 +56,9 @@ return [
         'api_key'    => env('FIREBASE_API_KEY', ''),
     ],
 
+    'baakhapaa' => [
+        'base_url' => env('BAAKHAPAA_BASE_URL', 'https://app.baakhapaa.com'),
+        'api_key'  => env('BAAKHAPAA_API_KEY', ''),
+    ],
+
 ];

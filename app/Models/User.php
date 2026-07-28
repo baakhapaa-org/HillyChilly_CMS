@@ -12,8 +12,8 @@ class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'avatar_url', 'points_balance', 'is_admin'];
-    protected $hidden   = ['password', 'remember_token'];
+    protected $fillable = ['name', 'email', 'password', 'avatar_url', 'points_balance', 'is_admin', 'firebase_uid', 'baakhapaa_user_id', 'baakhapaa_token'];
+    protected $hidden   = ['password', 'remember_token', 'baakhapaa_token'];
 
     protected function casts(): array {
         return [

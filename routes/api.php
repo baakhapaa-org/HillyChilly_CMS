@@ -63,6 +63,8 @@ Route::prefix('v1')->group(function () {
         // Rewards
         Route::get('/rewards',              [RewardController::class, 'index']);
         Route::get('/rewards/transactions', [RewardController::class, 'transactions']);
+        Route::get('/rewards/baakhapaa',        [RewardController::class, 'baakhapaaProfile']);
+        Route::post('/rewards/baakhapaa/credit', [RewardController::class, 'baakhapaaCredit']);
 
         // Profile
         Route::get('/profile',  [ProfileController::class, 'show']);

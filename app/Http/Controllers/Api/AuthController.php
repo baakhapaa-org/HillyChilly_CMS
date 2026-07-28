@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\BaakhapaaClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -16,8 +17,12 @@ class AuthController extends Controller
      *
      * Firebase ID tokens are NOT Google OAuth2 tokens — they must be verified
      * via the Firebase Identity Toolkit API, not oauth2.googleapis.com/tokeninfo.
+     *
+     * On first login, this also silently links/provisions a Baakhapaa
+     * rewards account server-to-server — the user never enters a Baakhapaa
+     * password and the Baakhapaa token never reaches the client.
      */
-    public function firebaseLogin(Request $request)
+    public function firebaseLogin(Request $request, BaakhapaaClient $baakhapaa)
     {
         $request->validate(['firebase_token' => 'required|string']);
 
@@ -72,6 +77,21 @@ class AuthController extends Controller
         // Keep avatar in sync.
         if ($avatar && $user->avatar_url !== $avatar) {
             $user->update(['avatar_url' => $avatar]);
+        }
+
+        if ($user->firebase_uid !== $fireUid) {
+            $user->firebase_uid = $fireUid;
+            $user->save();
+        }
+
+        // Silently find-or-create a Baakhapaa rewards account, once.
+        if (!$user->baakhapaa_user_id) {
+            $linked = $baakhapaa->linkAccount($email, $name);
+            if ($linked) {
+                $user->baakhapaa_user_id = $linked['baakhapaa_user_id'];
+                $user->baakhapaa_token = $linked['access_token'];
+                $user->save();
+            }
         }
 
         $token = $user->createToken('mobile-firebase')->plainTextToken;
